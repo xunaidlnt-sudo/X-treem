@@ -1,0 +1,7 @@
+node_modules/
+dist/
+release/
+.gstack/
+work/
+*.log
+public/vendor/

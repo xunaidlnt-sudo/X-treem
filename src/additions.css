@@ -1,0 +1,256 @@
+[hidden] {
+  display: none !important;
+}
+.devices-control {
+  color: #b5f060;
+  border: 1px solid #52623e;
+  background: #b5f06008;
+}
+.device-modal {
+  max-width: 650px;
+}
+.device-fields {
+  padding: 15px 20px 24px;
+}
+.device-fields label {
+  display: block;
+  color: #c9d2dc;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+.device-fields select {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #121922;
+  border: 1px solid #455461;
+  border-radius: 7px;
+  color: white;
+  margin-top: 9px;
+}
+.device-status {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #b5c79f;
+  margin: 18px 0;
+}
+.device-fields .help {
+  font-size: 11px;
+}
+.tabs {
+  flex-wrap: wrap;
+}
+.tabs button {
+  flex: 1 0 31%;
+  padding: 12px 6px;
+  font-size: 10px;
+}
+.scenes {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.scene-art {
+  height: 60px;
+}
+.button-pair {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.button-pair > button {
+  flex: 1;
+}
+.connection-state {
+  font-size: 10px;
+  color: #b0c39b;
+  margin: 10px 0 16px;
+}
+.reaction-buttons {
+  display: flex;
+  gap: 6px;
+}
+.reaction-buttons button {
+  background: #28313b;
+  border: 1px solid #3c4756;
+  border-radius: 7px;
+  padding: 8px;
+  font-size: 19px;
+  flex: 1;
+}
+.reaction-buttons button:hover {
+  background: #3f5140;
+}
+.chat-preview {
+  border: 1px solid #4c6050;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 20px 0;
+  background: #151d23;
+}
+.chat-preview .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.7;
+}
+.chat-preview > .primary {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  font-size: 11px;
+}
+.chat-card {
+  padding: 12px;
+  border-radius: 7px;
+  border: 1px solid #3c4751;
+  background: #202933;
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 9px 0;
+  overflow-wrap: anywhere;
+}
+.chat-card.paid {
+  background: #18423f;
+  border-color: #367f70;
+}
+.chat-card strong {
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.chat-card strong span {
+  color: #91e1b2;
+}
+.chat-card p {
+  font-size: 12px;
+  color: #e1e8e9;
+  margin: 8px 0;
+}
+.chat-card small {
+  font-size: 9px;
+}
+.text-button {
+  font-size: 10px;
+  color: #aabd9a;
+  background: transparent;
+  text-decoration: underline;
+  padding: 12px 0;
+  display: block;
+}
+.chat-feed {
+  max-height: 350px;
+  overflow: auto;
+}
+.background-thumb {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+.inspector input[type="file"] {
+  padding: 8px !important;
+  font-size: 10px !important;
+}
+.guest-card {
+  padding: 14px;
+  border: 1px solid #4b6050;
+  border-radius: 8px;
+  margin: 18px 0;
+  background: #192b2b;
+}
+.guest-card > strong {
+  font-size: 13px;
+}
+.guest-card > p {
+  font-size: 11px;
+  margin-top: 10px;
+}
+.guest-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 45px 30px;
+}
+.guest-page > .wordmark {
+  margin-bottom: 50px;
+}
+.guest-page h1 {
+  font-size: 36px;
+}
+.guest-videos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 30px 0;
+}
+.guest-videos > div {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: #20313a;
+  border: 1px solid #42515b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.guest-videos video {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+.guest-videos span {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  font-size: 12px;
+  background: #10151bcc;
+  padding: 6px 10px;
+  border-radius: 5px;
+}
+.guest-page section {
+  max-width: 550px;
+}
+.guest-page label {
+  font-size: 13px;
+  display: block;
+  margin: 16px 0;
+}
+.guest-page input:not([type="checkbox"]) {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #1d252f;
+  border: 1px solid #45515d;
+  border-radius: 7px;
+  color: white;
+  margin-top: 10px;
+}
+.guest-page .guest-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.guest-consent input {
+  flex-shrink: 0;
+}
+.guest-page > .help {
+  margin-top: 30px;
+  max-width: 650px;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .guest-videos {
+    grid-template-columns: 1fr;
+  }
+  .guest-page {
+    padding: 25px 18px;
+  }
+  .scenes {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
