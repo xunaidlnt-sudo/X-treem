@@ -1,6 +1,6 @@
 // Runs the real Electron main/preload/renderer with synthetic capture only.
 // Test data is isolated from the user's studio configuration and recordings.
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog, nativeImage } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
@@ -8,14 +8,30 @@ const root = path.join(os.tmpdir(), "xtreem-desktop-smoke-" + Date.now());
 require("node:fs").mkdirSync(root, { recursive: true });
 app.setPath("userData", root);
 app.setPath("videos", root);
+dialog.showSaveDialog = async () => ({
+  canceled: false,
+  filePath: path.join(root, "snapshot.png"),
+});
 app.commandLine.appendSwitch("use-fake-device-for-media-stream");
 app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+// This isolated test only writes local synthetic recordings, never stream keys.
+const childProcess = require("node:child_process");
+const originalSpawn = childProcess.spawn;
+let encoderLog = "";
+childProcess.spawn = (...args) => {
+  const process = originalSpawn(...args);
+  if (Array.isArray(args[1]) && args[1].includes("pipe:0"))
+    process.stderr?.on("data", (chunk) => {
+      encoderLog = (encoderLog + chunk.toString()).slice(-8000);
+    });
+  return process;
+};
 require("../electron/main.cjs");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const watchdog = setTimeout(() => {
   console.error("Desktop test timed out");
   app.exit(1);
-}, 150000);
+}, 240000);
 (async () => {
   try {
     await app.whenReady();
@@ -71,6 +87,94 @@ const watchdog = setTimeout(() => {
     );
     console.log(
       "PASS visible device selection, populated inputs and camera switching",
+    );
+    await evaluate(`document.querySelectorAll('.tabs button')[3].click()`);
+    await sleep(200);
+    await evaluate(
+      `(async()=>{const c=document.createElement('canvas');c.width=c.height=100;const x=c.getContext('2d');x.fillStyle='#ff0000';x.fillRect(0,0,100,100);const blob=await new Promise(r=>c.toBlob(r));const d=new DataTransfer();d.items.add(new File([blob],'logo.png',{type:'image/png'}));const input=document.querySelector('[aria-label="Upload logo"]');input.files=d.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+    );
+    await sleep(700);
+    const logoPixels = await evaluate(
+      `[...document.querySelectorAll('.canvases canvas')].map(c=>[...c.getContext('2d').getImageData(c.width*.9,c.height*.07,1,1).data])`,
+    );
+    if (logoPixels.some((p) => p[0] < 230 || p[1] > 20 || p[2] > 20))
+      throw Error(
+        "Uploaded logo is missing from an output: " +
+          JSON.stringify(logoPixels),
+      );
+    await evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown',{code:'Digit3',ctrlKey:true,altKey:true,bubbles:true}))`,
+    );
+    await sleep(200);
+    if (
+      !(await evaluate(
+        `document.querySelector('.scene.selected strong').textContent==='Camera'`,
+      ))
+    )
+      throw Error("Scene shortcut failed");
+    await evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyM',ctrlKey:true,shiftKey:true,bubbles:true}))`,
+    );
+    await sleep(100);
+    if (
+      !(await evaluate(
+        `!!document.querySelector('[aria-label="Unmute microphone"]')`,
+      ))
+    )
+      throw Error("Microphone shortcut failed");
+    await evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyM',ctrlKey:true,shiftKey:true,bubbles:true}));document.querySelectorAll('.tabs button')[6].click()`,
+    );
+    await sleep(200);
+    await evaluate(
+      `(()=>{const input=document.querySelector('[aria-label="Countdown seconds"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'2');input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new KeyboardEvent('keydown',{code:'Digit1',ctrlKey:true,altKey:true,bubbles:true}));})()`,
+    );
+    await sleep(100);
+    if (
+      !(await evaluate(
+        `document.querySelector('.scene.selected strong').textContent==='Camera'`,
+      ))
+    )
+      throw Error("Shortcut changed scene while typing");
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b=>b.textContent==='Start countdown').click()`,
+    );
+    await sleep(250);
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b=>b.textContent==='Pause countdown').click()`,
+    );
+    await sleep(300);
+    const paused = await evaluate(
+      `document.querySelector('.countdown-readout').textContent`,
+    );
+    await sleep(1100);
+    if (
+      (await evaluate(
+        `document.querySelector('.countdown-readout').textContent`,
+      )) !== paused
+    )
+      throw Error("Paused countdown advanced");
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b=>b.textContent==='Resume countdown').click()`,
+    );
+    await sleep(2500);
+    if (
+      !(await evaluate(
+        `document.querySelector('.scene.selected strong').textContent==='Camera' && document.querySelector('.session-control button').textContent.trim()==='Start recording'`,
+      ))
+    )
+      throw Error("Countdown completion changed the wrong scene/session");
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b=>b.textContent==='Save landscape PNG').click()`,
+    );
+    await sleep(400);
+    const snapshot = nativeImage
+      .createFromPath(path.join(root, "snapshot.png"))
+      .getSize();
+    if (snapshot.width !== 1280 || snapshot.height !== 720)
+      throw Error("Snapshot failed");
+    console.log(
+      "PASS uploaded logo on both outputs, focused shortcuts, pause/resume countdown, private completion and saved PNG snapshot",
     );
     await evaluate(`document.querySelectorAll('.tabs button')[4].click()`);
     await sleep(200);
@@ -244,6 +348,81 @@ const watchdog = setTimeout(() => {
       console.log(
         "PASS browser guest invitation, consent, host acceptance, advancing guest preview and visible guest pixels in both outputs",
       );
+      await guest.webContents.executeJavaScript(
+        `Object.defineProperty(navigator.mediaDevices,'getDisplayMedia',{configurable:true,value:async()=>{const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;const ctx=canvas.getContext('2d');const paint=()=>{ctx.fillStyle='#0033ff';ctx.fillRect(0,0,640,360);ctx.fillStyle='white';ctx.fillText(String(Date.now()),10,20);};paint();window.__shareTimer=setInterval(paint,50);return canvas.captureStream(20);}})`,
+        true,
+      );
+      await guest.webContents.executeJavaScript(
+        `document.querySelector('.guest-share-button').click()`,
+        true,
+      );
+      const blueGuest = () =>
+        evaluate(
+          `(()=>{const v=document.querySelector('.guest-monitor');const c=document.createElement('canvas');c.width=c.height=10;c.getContext('2d').drawImage(v,0,0,10,10);const p=c.getContext('2d').getImageData(5,5,1,1).data;return p[2]>180&&p[0]<60&&p[1]<120;})()`,
+        );
+      let shared = false;
+      for (let i = 0; i < 40; i++) {
+        await sleep(250);
+        if (await blueGuest()) {
+          shared = true;
+          break;
+        }
+      }
+      if (!shared) throw Error("Guest screen did not reach host");
+      await evaluate(
+        `[...document.querySelectorAll('button')].find(b=>b.textContent==='Spotlight guest / shared screen').click()`,
+      );
+      await sleep(300);
+      const blueOutputs = await evaluate(
+        `[...document.querySelectorAll('.canvases canvas')].map(c=>{const p=c.getContext('2d').getImageData(c.width*.5,c.height*.5,1,1).data;return p[2]>180&&p[0]<60;})`,
+      );
+      if (blueOutputs.some((v) => !v))
+        throw Error("Shared screen missing from spotlight output");
+      await evaluate(
+        `document.querySelector('[aria-label="Hide guest video"]').click()`,
+      );
+      await sleep(200);
+      const hiddenPixel = await evaluate(
+        `(()=>{const c=document.querySelector('.canvases canvas');return [...c.getContext('2d').getImageData(c.width*.5,c.height*.5,1,1).data]})()`,
+      );
+      if (hiddenPixel[2] > 180 && hiddenPixel[0] < 60)
+        throw Error("Hide guest did not remove shared screen from output");
+      await evaluate(
+        `document.querySelector('[aria-label="Hide guest video"]').click();window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyG',ctrlKey:true,shiftKey:true,bubbles:true}));`,
+      );
+      await sleep(100);
+      if (
+        !(await evaluate(
+          `document.querySelector('.guest-level-row button').textContent==='Unmute guest'`,
+        ))
+      )
+        throw Error("Guest mute shortcut failed");
+      await evaluate(
+        `window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyG',ctrlKey:true,shiftKey:true,bubbles:true}))`,
+      );
+      await guest.webContents.executeJavaScript(
+        `document.querySelector('.guest-share-button').click()`,
+        true,
+      );
+      let restored = false;
+      for (let i = 0; i < 40; i++) {
+        await sleep(250);
+        if (!(await blueGuest())) {
+          restored = true;
+          break;
+        }
+      }
+      if (!restored) throw Error("Guest camera was not restored after sharing");
+      await guest.webContents.executeJavaScript(
+        `clearInterval(window.__shareTimer)`,
+        true,
+      );
+      await evaluate(
+        `[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Show interview scene')).click()`,
+      );
+      console.log(
+        "PASS real WebRTC screen-track replacement, spotlight in both outputs, hide control, guest mute shortcut and camera restoration",
+      );
     }
     await evaluate(
       `document.querySelector('[aria-label="Output settings"]').click()`,
@@ -314,6 +493,8 @@ const watchdog = setTimeout(() => {
     app.exit(0);
   } catch (error) {
     console.error(error);
+    if (encoderLog)
+      console.error("Synthetic recording diagnostic:", encoderLog);
     app.exit(1);
   }
 })();

@@ -9,6 +9,7 @@ const {
   dialog,
   protocol,
   net,
+  nativeImage,
 } = require("electron");
 const { pathToFileURL } = require("node:url");
 const path = require("node:path");
@@ -161,6 +162,30 @@ app.whenReady().then(async () => {
   handle("stream:chunk", (o, b) => engine.write(o, b));
   handle("stream:stop", () => engine.stop());
   handle("recordings:open", () => shell.openPath(folder));
+  handle("snapshot:save", async (orientation, data) => {
+    if (
+      !["landscape", "portrait"].includes(orientation) ||
+      typeof data !== "string" ||
+      data.length > 20 * 1024 * 1024 ||
+      !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data)
+    )
+      throw Error("Invalid snapshot.");
+    const image = nativeImage.createFromDataURL(data);
+    const size = image.getSize();
+    if (image.isEmpty() || size.width > 1920 || size.height > 1920)
+      throw Error("Invalid snapshot size.");
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: "Save preview snapshot",
+      defaultPath: path.join(
+        app.getPath("pictures"),
+        `X-treem-${orientation}-${Date.now()}.png`,
+      ),
+      filters: [{ name: "PNG image", extensions: ["png"] }],
+    });
+    if (canceled || !filePath) return null;
+    await fs.writeFile(filePath, image.toPNG());
+    return filePath;
+  });
   engine.on("status", (s) => {
     if (win && !win.isDestroyed()) win.webContents.send("stream:status", s);
   });

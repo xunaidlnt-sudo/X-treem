@@ -27,7 +27,20 @@ assert.equal(
 );
 assert.ok(js.includes("Camera & audio devices"));
 assert.ok(js.includes("Guest interview"));
-assert.ok(js.includes("Guest camera preview"));
+assert.ok(js.includes("Guest video preview"));
+assert.ok(js.includes("Show controls"));
+assert.ok(js.includes("Headphone volume"));
+const guestHtml = asar
+  .extractFile(archive, path.join("dist", "guest.html"))
+  .toString();
+const guestMatch = guestHtml.match(/src="\.\/assets\/([^\"]+\.js)"/);
+assert.ok(guestMatch);
+assert.ok(
+  asar
+    .extractFile(archive, path.join("dist", "assets", guestMatch[1]))
+    .toString()
+    .includes("Share your screen"),
+);
 assert.ok(js.includes("Live comments"));
 assert.ok(
   asar.extractFile(

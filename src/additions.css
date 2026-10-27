@@ -176,6 +176,66 @@
   border-radius: 8px;
   margin-top: 12px;
 }
+.countdown-readout {
+  display: block;
+  text-align: center;
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #b5f060);
+  margin: 18px 0;
+}
+.logo-thumb {
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: contain;
+  margin: 8px 0;
+}
+.monitor-panel {
+  padding: 18px;
+  margin-top: 14px;
+  border: 1px solid #2d3840;
+  border-radius: 12px;
+  background: #151d24;
+}
+.guest-level-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+}
+.guest-level-row .audio-meter {
+  flex: 1;
+}
+.monitor-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+}
+.monitor-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.monitor-options input[type="range"] {
+  width: 100px;
+}
+.monitor-panel .help {
+  margin-bottom: 0;
+}
+.scenes {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.tabs {
+  flex-wrap: wrap;
+}
+@media (max-width: 1200px) {
+  .scenes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 .guest-card > p {
   font-size: 11px;
   margin-top: 10px;

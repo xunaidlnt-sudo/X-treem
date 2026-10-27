@@ -2,9 +2,9 @@
 
 A React desktop production studio for Windows. Compose a show once, preview it in landscape and portrait, and stream both formats at the same time.
 
-**[Download the Windows installer](https://github.com/xunaidlnt-sudo/X-treem/releases)** · Current release: **0.1.1 preview**
+**[Download the Windows installer](https://github.com/xunaidlnt-sudo/X-treem/releases)** · Current release: **0.2.0 preview**
 
-**0.1.1 fixes guest video appearing blank on the host:** repeated audio/video notifications now preserve the incoming tracks. The Guests panel also has a live guest camera preview, independent of the selected scene. Close X-treem, install the update, reopen your interview room and send a fresh invitation.
+**New in 0.2.0:** show countdowns, scene and mute shortcuts, your own logo, PNG snapshots, guest screen sharing and spotlight, guest hide/fit controls, separate guest audio metering and headphone monitoring. Includes the 0.1.1 guest-video fix. Close X-treem, install the update, reopen your interview room and send a fresh invitation.
 
 ![X-treem Studio with landscape and portrait previews](docs/studio.png)
 
@@ -27,7 +27,7 @@ A React desktop production studio for Windows. Compose a show once, preview it i
 
 ## Quick start
 
-1. Install `X-treem-Setup-0.1.1-x64.exe` from Releases on Windows 10/11 x64.
+1. Install `X-treem-Setup-0.2.0-x64.exe` from Releases on Windows 10/11 x64.
 2. Open **Devices** beside the camera/microphone controls. Choose your camera, microphone and speakers/headphones; **Enable & detect devices** requests access and reveals device names. Refresh the list after connecting hardware. Add your camera and microphone, select a scene and adjust branding. **Save studio** remembers the selected devices.
 3. Add a destination with its RTMP(S) server URL and stream key. Choose landscape or portrait for each destination. The service must provide RTMP ingest access; signing in to that service is done in its own dashboard.
 4. Keep both output formats selected for simultaneous wide and vertical streaming. Each format needs a destination unless local recording is enabled.
@@ -46,7 +46,23 @@ The preview is private until a session starts. Adding a destination does not tra
 
 An accepted guest receives your camera and microphone even before you go live. The initial release supports one host plus one guest. Guest mode uses PeerJS public signaling, Google STUN and PeerJS's configured public TURN servers when needed; encrypted WebRTC media can be relayed. Provider availability, firewalls and NAT conditions affect reliability. Guest links are valid while the host room stays open. The guest join page is hosted at [X-treem Guest Studio](https://xunaidlnt-sudo.github.io/X-treem/guest.html); guests need the full private invitation, including its fragment token.
 
+## Show controls and branding
+
+- **Show → Countdown:** choose 1–3600 seconds and the scene to show when it finishes. Start, pause, resume, restart or cancel. The timer appears on Starting soon in both formats. It only switches scenes: it never starts a broadcast. Manually switching away cancels it. Active timers are not restored when reopening the app.
+- **Brand → Upload your logo:** PNG, JPG or WebP up to 2 MB, resized locally for efficient rendering. The logo appears at the upper right in both outputs; its size is adjustable. Remove it to return to the studio badge. Save studio remembers it.
+- **Show → Save landscape/portrait PNG:** save the current output canvas, including branding and comments, through a Windows Save dialog. No recording session is required.
+- **Ctrl+Alt+1–6:** Interview, Starting soon, Camera, Screen + you, Screen only, Guest spotlight. **Ctrl+Shift+M:** host microphone mute. **Ctrl+Shift+G:** guest broadcast mute. These shortcuts work while the studio is focused, outside text fields and device dialogs. They never start or stop streaming.
+
+## Guest screen sharing and audio monitoring
+
+After the host accepts the guest, the guest can press **Share your screen** in a supported desktop browser and choose a window or screen. Sharing replaces the outgoing guest camera video while their microphone continues. **Stop sharing screen**, or the browser's stop-sharing control, restores the camera. Computer audio is not captured. The shared picture can be live immediately if the host is already broadcasting a scene containing the guest.
+
+The host can use **Spotlight guest / shared screen** for a full-canvas presentation, **Fit the entire guest picture** to avoid cropping, or **Hide guest video from outputs** while retaining the private guest preview and audio. Hide video does not mute audio. One host plus one guest remains the limit.
+
+The incoming guest meter shows the received audio before broadcast mute/volume. **Hear my microphone**, **Hear guest**, and **Headphone volume** affect only the host's selected speakers/headphones. Guest broadcast mute and volume affect the recording and live stream independently: you can still listen to a muted guest with Hear guest enabled. Host microphone monitoring starts off; use headphones to avoid feedback. The guest receives host microphone audio only, not the monitoring mix.
+
 ## Comments, Super Chat and reactions
+
 
 Open **Comments** to connect YouTube with a YouTube Data API v3 key and active video URL, or Twitch with a username, channel and authorized `chat:read` OAuth token. You can connect both at once. API credentials are supplied by the user; the app does not bypass account access or quotas.
 

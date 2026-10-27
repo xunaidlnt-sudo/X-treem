@@ -34,6 +34,9 @@ import { StudioMedia } from "./media";
 import { ChatPanel } from "./ChatPanel";
 import { GuestPanel } from "./GuestPanel";
 import { BackgroundPanel } from "./BackgroundPanel";
+import { ShowPanel } from "./ShowPanel";
+import { logoFromFile, studioShortcut } from "./show-tools";
+import packageInfo from "../package.json";
 import "./style.css";
 import "./additions.css";
 const defaults = {
@@ -62,6 +65,15 @@ const defaults = {
   autoReactions: false,
   guestVolume: 100,
   guestMuted: false,
+  monitorHost: false,
+  monitorGuest: true,
+  monitorVolume: 70,
+  guestVideoHidden: false,
+  guestFit: true,
+  logoImage: "",
+  logoSize: 12,
+  countdownSeconds: 60,
+  countdownScene: "camera",
 };
 const encoderNames = {
   auto: "Auto · best available",
@@ -101,6 +113,12 @@ const scenes = [
     description: "Make room for the details",
     icon: Monitor,
   },
+  {
+    id: "guest",
+    name: "Guest spotlight",
+    description: "Camera or shared screen",
+    icon: Users,
+  },
 ];
 function App() {
   const [config, setConfig] = useState(defaults),
@@ -115,6 +133,7 @@ function App() {
     [status, setStatus] = useState({}),
     [message, setMessage] = useState(""),
     [level, setLevel] = useState(0),
+    [guestLevel, setGuestLevel] = useState(0),
     [elapsed, setElapsed] = useState(0),
     [sessionInfo, setSessionInfo] = useState(null),
     [saved, setSaved] = useState(false),
@@ -131,6 +150,7 @@ function App() {
     phaseRef = useRef("idle");
   const busy = phase !== "idle";
   const change = (key, value) => {
+    if (key === "scene" && value !== "slate") media.current?.countdown.cancel();
     setSaved(false);
     setConfig((c) => ({ ...c, [key]: value }));
   };
@@ -140,6 +160,7 @@ function App() {
     m.mount(landscape.current, portrait.current);
     m.onScreenEnd = () => setScreen(false);
     m.onBackgroundStatus = setBackgroundStatus;
+    m.onCountdownEnd = (scene) => change("scene", scene);
     let active = true;
     window.studio
       ?.load()
@@ -165,13 +186,31 @@ function App() {
         void stop();
       }
     });
-    const interval = setInterval(() => setLevel(m.level), 100);
+    const interval = setInterval(() => {
+      setLevel(m.level);
+      setGuestLevel(m.guestLevel || 0);
+    }, 100);
     return () => {
       active = false;
       unsub?.();
       clearInterval(interval);
       m.dispose();
     };
+  }, []);
+  useEffect(() => {
+    const handler = (event) => {
+      if (document.querySelector('[role="dialog"]')) return;
+      const action = studioShortcut(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action.key === "scene") change(action.key, action.value);
+      else {
+        setSaved(false);
+        setConfig((c) => ({ ...c, [action.key]: !c[action.key] }));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
   useEffect(() => {
     const refresh = () =>
@@ -381,7 +420,7 @@ function App() {
           <FolderOpen size={22} />
         </button>
         <div className="rail-bottom">
-          <span className="version">0.1</span>
+          <span className="version">{packageInfo.version}</span>
         </div>
       </aside>
       <div className="workspace">
@@ -562,6 +601,7 @@ function App() {
                 {scenes.map(({ id, name, description, icon: Icon }, i) => (
                   <button
                     key={id}
+                    title={`Ctrl + Alt + ${i + 1}`}
                     onClick={() => change("scene", id)}
                     className={`scene ${config.scene === id ? "selected" : ""}`}
                   >
@@ -614,6 +654,54 @@ function App() {
               />
               <span className="volume-value">{config.volume}%</span>
             </section>
+            <section className="monitor-panel">
+              <div className="guest-level-row">
+                <strong>Incoming guest</strong>
+                <div className="audio-meter" aria-label="Guest audio level">
+                  <div style={{ width: `${guestLevel * 100}%` }} />
+                </div>
+                <button
+                  className="secondary"
+                  onClick={() => change("guestMuted", !config.guestMuted)}
+                >
+                  {config.guestMuted ? "Unmute guest" : "Mute guest"}
+                </button>
+              </div>
+              <div className="monitor-options">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.monitorHost}
+                    onChange={(e) => change("monitorHost", e.target.checked)}
+                  />{" "}
+                  Hear my microphone
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.monitorGuest}
+                    onChange={(e) => change("monitorGuest", e.target.checked)}
+                  />{" "}
+                  Hear guest
+                </label>
+                <label>
+                  Headphone volume{" "}
+                  <input
+                    aria-label="Headphone volume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={config.monitorVolume}
+                    onChange={(e) => change("monitorVolume", +e.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="help">
+                Use headphones. Listening controls affect your speakers only.
+                Muting the guest affects the broadcast; you can still hear them
+                when Hear guest is enabled.
+              </p>
+            </section>
             <div className="studio-footer">
               <span>
                 <Cpu size={14} />
@@ -638,6 +726,7 @@ function App() {
                 ["brand", "Brand", Palette],
                 ["background", "Background", WandSparkles],
                 ["settings", "Settings", Settings2],
+                ["show", "Show", Clapperboard],
               ].map(([id, label, Icon]) => (
                 <button
                   key={id}
@@ -664,7 +753,17 @@ function App() {
                 media={media}
                 onError={setMessage}
                 onRoomState={setRoomOpen}
+                level={guestLevel}
               />
+              {tab === "show" && (
+                <ShowPanel
+                  media={media}
+                  config={config}
+                  change={change}
+                  scenes={scenes}
+                  onError={setMessage}
+                />
+              )}
               {tab === "background" && (
                 <BackgroundPanel
                   config={config}
@@ -887,13 +986,59 @@ function App() {
                     </div>
                   </label>
                   <label className="toggle-row">
-                    Show studio badge
+                    Show logo / studio badge
                     <input
                       type="checkbox"
                       checked={config.logo}
                       onChange={(e) => change("logo", e.target.checked)}
                     />
                   </label>
+                  <label>
+                    Upload your logo
+                    <input
+                      aria-label="Upload logo"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          change("logoImage", await logoFromFile(file));
+                          change("logo", true);
+                        } catch (error) {
+                          setMessage(error.message);
+                        } finally {
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                  {config.logoImage && (
+                    <>
+                      <img
+                        className="logo-thumb"
+                        src={config.logoImage}
+                        alt="Your studio logo"
+                      />
+                      <label>
+                        Logo size
+                        <input
+                          aria-label="Logo size"
+                          type="range"
+                          min="5"
+                          max="20"
+                          value={config.logoSize}
+                          onChange={(e) => change("logoSize", +e.target.value)}
+                        />
+                      </label>
+                      <button
+                        className="secondary"
+                        onClick={() => change("logoImage", "")}
+                      >
+                        Remove custom logo
+                      </button>
+                    </>
+                  )}
                   <label className="toggle-row">
                     Show lower third
                     <input
@@ -1095,8 +1240,8 @@ function App() {
                     </p>
                   </div>
                   <p className="help">
-                    v0.1 · Local production studio. Cloud scheduling and guest
-                    ISO recordings are not included.
+                    v{packageInfo.version} · Local production studio. Cloud
+                    scheduling and guest ISO recordings are not included.
                   </p>
                 </>
               )}

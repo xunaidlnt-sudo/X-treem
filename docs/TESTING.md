@@ -1,6 +1,6 @@
 # Release validation
 
-Validated locally on Windows x64 on 27 October 2026.
+Version 0.2.0 validated locally on Windows x64 on 28 October 2026 (Asia/Dubai).
 
 - Node integration tests: configuration validation, rejection of muxer control characters, per-format routing, actual FFmpeg H.264/AAC recording and delivery to three local RTMP receivers (two wide destinations and one portrait destination).
 - Chat tests: YouTube paid-message normalization and polling/deduplication, Twitch IRC parsing and Bits, moderation events, relay limits and transport validation.
@@ -10,6 +10,9 @@ Validated locally on Windows x64 on 27 October 2026.
 - Comment test: a local WebSocket relay delivers a synthetic paid message through the real main/preload/renderer path; the host previews it, selects on-stream display and triggers a reaction.
 - Guest test: two actual Electron browser contexts using synthetic media connect over PeerJS/WebRTC; invitation token, guest consent, host waiting-room approval, live tracks, advancing preview playback and visible guest pixels in both output canvases are checked before recording the interview. The test waits for recording finalization before decoding files.
 - 0.1.1 regression: sequential and concurrent duplicate incoming stream notifications must preserve live tracks and a single audio mix; removing a guest while playback starts must not restore the removed guest. All three tests failed against 0.1.0 before the fix.
+- 0.2.0: countdown pause/resume/cancel and single completion; shortcuts ignore typing/repeats; screen-track replacement/restoration, canceled capture cleanup and replacement failure cleanup; guest broadcast and monitor gains remain independent. The test loaders do not bind a shared development WebSocket port.
+- Desktop feature checks: uploaded logo pixels in both canvases, scene and mute shortcuts, countdown completes without going live, PNG snapshot decoded at 1280×720, actual WebRTC video-track replacement with a synthetic shared screen, guest spotlight in both canvases, hide/unhide, guest mute shortcut and camera restoration before dual-format recording. The screen-picker result is synthetic; no user screen or camera is captured.
+- One recording run stopped during concurrent background activity; a subsequent full software-encoding run completed and both files decoded. This is not a load/soak certification; choose settings appropriate to the machine and validate locally before a show.
 - Both CPU (`libx264`) and Intel Quick Sync (`h264_qsv`) encoding were tested on the available machine. NVIDIA/AMD hardware was not available.
 - Browser checks: studio controls, 1080p canvas resizing, explicit desktop-only streaming message, no horizontal overflow at the 1100-pixel minimum window width and no console errors on a clean load.
 

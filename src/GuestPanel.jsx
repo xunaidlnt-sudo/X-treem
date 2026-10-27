@@ -8,6 +8,7 @@ export function GuestPanel({
   config,
   onError,
   onRoomState,
+  level = 0,
 }) {
   const [link, setLink] = useState(""),
     [status, setStatus] = useState("Room closed"),
@@ -230,12 +231,34 @@ export function GuestPanel({
             autoPlay
             playsInline
             muted
-            aria-label="Guest camera preview"
+            aria-label="Guest video preview"
           />
           <p>
-            Guest camera preview. The Interview scene includes your guest in
+            Guest video preview. Your guest can share a screen in place of their
+            camera. The Interview and Guest spotlight scenes include them in
             both outputs.
           </p>
+          <label className="toggle-row">
+            Hide guest video from outputs
+            <input
+              aria-label="Hide guest video"
+              type="checkbox"
+              checked={!!config.guestVideoHidden}
+              onChange={(e) => change("guestVideoHidden", e.target.checked)}
+            />
+          </label>
+          <label className="toggle-row">
+            Fit the entire guest picture
+            <input
+              aria-label="Fit guest picture"
+              type="checkbox"
+              checked={config.guestFit !== false}
+              onChange={(e) => change("guestFit", e.target.checked)}
+            />
+          </label>
+          <div className="audio-meter" aria-label="Guest incoming audio">
+            <div style={{ width: `${level * 100}%` }} />
+          </div>
           <label className="toggle-row">
             Mute guest audio
             <input
@@ -263,6 +286,15 @@ export function GuestPanel({
           </button>
           <button className="text-button" onClick={endCall}>
             Remove guest
+          </button>
+          <button
+            className="secondary"
+            onClick={() => {
+              change("guestVideoHidden", false);
+              change("scene", "guest");
+            }}
+          >
+            Spotlight guest / shared screen
           </button>
         </div>
       )}

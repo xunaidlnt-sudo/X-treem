@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Peer } from "peerjs";
+import { GuestShare } from "./guest-share";
 import "./style.css";
 import "./additions.css";
 function Guest() {
@@ -10,14 +11,38 @@ function Guest() {
     [joined, setJoined] = useState(false),
     [mic, setMic] = useState(true),
     [camera, setCamera] = useState(true);
+  const [connected, setConnected] = useState(false),
+    [sharing, setSharing] = useState(false),
+    [shareBusy, setShareBusy] = useState(false);
   const selfVideo = useRef(),
     hostVideo = useRef(),
     stream = useRef(),
     peer = useRef(),
     call = useRef();
+  const share = useRef();
+  if (!share.current)
+    share.current = new GuestShare({
+      getCall: () => call.current,
+      getCamera: () => stream.current,
+      display: (options) => {
+        if (!navigator.mediaDevices.getDisplayMedia)
+          throw Error("Screen sharing requires a supported desktop browser.");
+        return navigator.mediaDevices.getDisplayMedia(options);
+      },
+      preview: (value) => {
+        if (selfVideo.current) {
+          selfVideo.current.srcObject = value;
+          if (value) void selfVideo.current.play().catch(() => {});
+        }
+      },
+      changed: setSharing,
+    });
   const params = new URLSearchParams(location.hash.slice(1));
   const valid = params.get("peer") && params.get("token");
   const leave = () => {
+    share.current.dispose();
+    setSharing(false);
+    setConnected(false);
     const c = call.current,
       p = peer.current;
     call.current = null;
@@ -33,6 +58,7 @@ function Guest() {
   };
   useEffect(
     () => () => {
+      share.current.dispose();
       call.current?.removeAllListeners();
       call.current?.close();
       peer.current?.removeAllListeners();
@@ -68,6 +94,7 @@ function Guest() {
           hostVideo.current.srcObject = remote;
           await hostVideo.current.play().catch(() => {});
           setStatus("Connected · your host may be streaming or recording.");
+          setConnected(true);
         });
         c.on("close", () => {
           leave();
@@ -158,6 +185,7 @@ function Guest() {
           </button>
           <button
             className="secondary"
+            disabled={sharing || shareBusy}
             onClick={() => {
               stream.current
                 .getVideoTracks()
@@ -167,10 +195,43 @@ function Guest() {
           >
             {camera ? "Turn camera off" : "Turn camera on"}
           </button>
+          <button
+            className="secondary guest-share-button"
+            disabled={!connected || shareBusy}
+            onClick={async () => {
+              setShareBusy(true);
+              try {
+                if (sharing) await share.current.stop();
+                else await share.current.start();
+              } catch (error) {
+                setStatus(
+                  error.name === "NotAllowedError"
+                    ? "Screen sharing was canceled. Your camera stays connected."
+                    : error.message,
+                );
+              } finally {
+                setShareBusy(false);
+              }
+            }}
+          >
+            {shareBusy
+              ? "Changing video…"
+              : sharing
+                ? "Stop sharing screen"
+                : "Share your screen"}
+          </button>
           <button className="danger" onClick={leave}>
             Leave interview
           </button>
         </div>
+      )}
+      {joined && (
+        <p className="help">
+          Sharing replaces your camera in the host’s preview and active
+          broadcast. Choose only the window or screen you want to show. Your
+          microphone continues; computer audio is not shared. Stop sharing to
+          return to your camera.
+        </p>
       )}
       <p className="help">
         Use headphones. This page uses PeerJS signaling and Google STUN to

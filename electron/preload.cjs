@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld("studio", {
   chunk: (o, b) => ipcRenderer.invoke("stream:chunk", o, b),
   stop: () => ipcRenderer.invoke("stream:stop"),
   recordings: () => ipcRenderer.invoke("recordings:open"),
+  snapshot: (orientation, data) =>
+    ipcRenderer.invoke("snapshot:save", orientation, data),
   chatConnect: (c) => ipcRenderer.invoke("chat:connect", c),
   chatDisconnect: (p) => ipcRenderer.invoke("chat:disconnect", p),
   onChat: (fn) => {

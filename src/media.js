@@ -1,5 +1,6 @@
 import { BackgroundEffect } from "./background";
 import { drawComment, drawReactions } from "./overlays";
+import { Countdown } from "./show-tools";
 export class StudioMedia {
   constructor() {
     this.camera = null;
@@ -14,6 +15,8 @@ export class StudioMedia {
       this.onBackgroundStatus?.(message),
     );
     this.reactions = [];
+    this.countdown = new Countdown();
+    this.guestLevel = 0;
   }
   async attach(kind, stream) {
     this[kind]?.getTracks().forEach((t) => t.stop());
@@ -100,6 +103,12 @@ export class StudioMedia {
     this.gain.connect(this.compressor);
     this.compressor.connect(this.analyser);
     this.compressor.connect(this.hostAudioOut);
+    this.hostMonitor = this.audioContext.createGain();
+    this.compressor.connect(this.hostMonitor);
+    this.hostMonitor.connect(this.audioContext.destination);
+    this.hostMonitor.gain.value = this.config.monitorHost
+      ? (this.config.monitorVolume ?? 70) / 100
+      : 0;
     this.analyser.connect(this.audioOut);
     const silence = this.audioContext.createOscillator();
     const zero = this.audioContext.createGain();
@@ -145,6 +154,8 @@ export class StudioMedia {
   mount(landscape, portrait) {
     this.canvases = { landscape, portrait };
     const loop = () => {
+      const nextScene = this.countdown.complete();
+      if (nextScene) this.onCountdownEnd?.(nextScene);
       this.processedCamera = this.backgroundEffect.frame(
         this.videos.camera,
         this.config,
@@ -166,12 +177,44 @@ export class StudioMedia {
           Math.sqrt(d.reduce((s, n) => s + (n - 128) ** 2, 0) / d.length) / 60,
         );
       }
+      if (this.guestAnalyser) {
+        const data = new Uint8Array(this.guestAnalyser.fftSize);
+        this.guestAnalyser.getByteTimeDomainData(data);
+        this.guestLevel = Math.min(
+          1,
+          Math.sqrt(
+            data.reduce((s, n) => s + (n - 128) ** 2, 0) / data.length,
+          ) / 60,
+        );
+      }
       this.raf = requestAnimationFrame(loop);
     };
     loop();
   }
   update(config) {
     this.config = config;
+    if (this.logoUrl !== config.logoImage) {
+      this.logoUrl = config.logoImage;
+      this.logoImage = null;
+      if (
+        typeof config.logoImage === "string" &&
+        config.logoImage.startsWith("data:image/png;base64,")
+      ) {
+        const img = new Image();
+        const url = config.logoImage;
+        img.onload = () => {
+          if (this.logoUrl === url) this.logoImage = img;
+        };
+        img.src = url;
+      }
+    }
+    if (this.hostMonitor)
+      this.hostMonitor.gain.value = config.monitorHost
+        ? (config.monitorVolume ?? 70) / 100
+        : 0;
+    if (this.guestMonitor)
+      this.guestMonitor.gain.value =
+        config.monitorGuest !== false ? (config.monitorVolume ?? 70) / 100 : 0;
     if (config.backgroundMode === "off") this.backgroundEffect.disable();
     if (this.guestGain)
       this.guestGain.gain.value = config.guestMuted
@@ -224,6 +267,15 @@ export class StudioMedia {
       screen = this.videos.screen;
     let drawn = false;
     if (c.scene === "camera") drawn = drawVideo(camera, 0, 0, w, h, true);
+    if (c.scene === "guest")
+      drawn = drawVideo(
+        c.guestVideoHidden ? null : this.videos.guest,
+        0,
+        0,
+        w,
+        h,
+        !c.guestFit,
+      );
     if (c.scene === "interview") {
       const gap = w * 0.016;
       const boxes = p
@@ -235,23 +287,25 @@ export class StudioMedia {
             [w * 0.025, h * 0.16, w * 0.465, h * 0.66],
             [w * 0.51, h * 0.16, w * 0.465, h * 0.66],
           ];
-      [camera, this.videos.guest].forEach((v, i) => {
-        const [x, y, bw, bh] = boxes[i];
-        ctx.fillStyle = "#14212a";
-        ctx.fillRect(x, y, bw, bh);
-        drawVideo(v, x, y, bw, bh, true);
-        ctx.fillStyle = "rgba(8,15,22,.8)";
-        ctx.fillRect(x, y + bh - h * 0.055, bw, h * 0.055);
-        ctx.fillStyle = "white";
-        ctx.textAlign = "left";
-        ctx.font = `600 ${h * (p ? 0.019 : 0.026)}px Arial`;
-        ctx.fillText(
-          i === 0 ? "Host" : this.guestName || "Guest seat",
-          x + w * 0.015,
-          y + bh - h * 0.019,
-          bw - w * 0.03,
-        );
-      });
+      [camera, c.guestVideoHidden ? null : this.videos.guest].forEach(
+        (v, i) => {
+          const [x, y, bw, bh] = boxes[i];
+          ctx.fillStyle = "#14212a";
+          ctx.fillRect(x, y, bw, bh);
+          drawVideo(v, x, y, bw, bh, i === 0 || !c.guestFit);
+          ctx.fillStyle = "rgba(8,15,22,.8)";
+          ctx.fillRect(x, y + bh - h * 0.055, bw, h * 0.055);
+          ctx.fillStyle = "white";
+          ctx.textAlign = "left";
+          ctx.font = `600 ${h * (p ? 0.019 : 0.026)}px Arial`;
+          ctx.fillText(
+            i === 0 ? "Host" : this.guestName || "Guest seat",
+            x + w * 0.015,
+            y + bh - h * 0.019,
+            bw - w * 0.03,
+          );
+        },
+      );
       drawn = true;
     }
     if (c.scene === "screen" || c.scene === "pip") {
@@ -299,6 +353,12 @@ export class StudioMedia {
         h * 0.53,
         w * 0.9,
       );
+      const timer = this.countdown.read();
+      if (c.scene === "slate" && timer.state !== "idle") {
+        ctx.fillStyle = c.accent || "#b5f060";
+        ctx.font = `700 ${w * (p ? 0.14 : 0.09)}px Arial`;
+        ctx.fillText(timer.text, w / 2, h * 0.73);
+      }
       ctx.fillStyle = "#b3c5c7";
       ctx.font = `${w * (p ? 0.028 : 0.018)}px Arial`;
       ctx.fillText(
@@ -309,7 +369,20 @@ export class StudioMedia {
         h * 0.59,
       );
     }
-    if (c.logo) {
+    if (c.logo && this.logoImage) {
+      const maxW =
+        w *
+        Math.min(0.3, Math.max(0.05, (c.logoSize || 12) / 100)) *
+        (p ? 1.6 : 1);
+      const maxH = h * 0.13;
+      const scale = Math.min(
+        maxW / this.logoImage.width,
+        maxH / this.logoImage.height,
+      );
+      const lw = this.logoImage.width * scale,
+        lh = this.logoImage.height * scale;
+      ctx.drawImage(this.logoImage, w - lw - w * 0.04, h * 0.035, lw, lh);
+    } else if (c.logo) {
       ctx.fillStyle = c.accent;
       ctx.fillRect(w * 0.04, h * 0.035, w * (p ? 0.25 : 0.1), h * 0.046);
       ctx.fillStyle = "#14200a";
@@ -400,9 +473,14 @@ export class StudioMedia {
           return;
         this.guestSource = this.audioContext.createMediaStreamSource(stream);
         this.guestGain = this.audioContext.createGain();
-        this.guestSource.connect(this.guestGain);
+        this.guestAnalyser = this.audioContext.createAnalyser();
+        this.guestAnalyser.fftSize = 256;
+        this.guestSource.connect(this.guestAnalyser);
+        this.guestAnalyser.connect(this.guestGain);
         this.guestGain.connect(this.audioOut);
-        this.guestGain.connect(this.audioContext.destination);
+        this.guestMonitor = this.audioContext.createGain();
+        this.guestSource.connect(this.guestMonitor);
+        this.guestMonitor.connect(this.audioContext.destination);
         this.update(this.config);
       };
       this.guestTrackListener = connectAudio;
@@ -423,6 +501,11 @@ export class StudioMedia {
     this.guestTrackListener = null;
     this.guestSource?.disconnect();
     this.guestGain?.disconnect();
+    this.guestAnalyser?.disconnect();
+    this.guestMonitor?.disconnect();
+    this.guestAnalyser = null;
+    this.guestMonitor = null;
+    this.guestLevel = 0;
     this.guestSource = null;
     this.guestGain = null;
     // Remote tracks belong to the call. Detaching a view must not stop them.

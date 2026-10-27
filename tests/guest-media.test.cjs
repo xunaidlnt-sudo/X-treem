@@ -6,7 +6,11 @@ test.before(async () => {
   const { createServer } = await import("vite");
   const server = await createServer({
     configFile: false,
-    server: { middlewareMode: true, hmr: false },
+    optimizeDeps: { noDiscovery: true, include: [] },
+    server: {
+      middlewareMode: true,
+      hmr: { server: require("node:http").createServer() },
+    },
     appType: "custom",
   });
   try {
@@ -46,6 +50,7 @@ function fixture() {
     audioContext: {
       createMediaStreamSource: node,
       createGain: node,
+      createAnalyser: node,
       destination: {},
     },
   });
@@ -97,4 +102,17 @@ test("removing a guest during playback startup cannot restore its video or audio
   await attaching;
   assert.equal(media.videos.guest, undefined);
   assert.equal(media.guestSource, null);
+});
+test("guest broadcast mute and headphone monitoring have independent gains", async () => {
+  const { media, stream } = fixture();
+  await media.addGuest(stream, "Guest");
+  media.update({ guestMuted: true, monitorGuest: true, monitorVolume: 45 });
+  assert.equal(media.guestGain.gain.value, 0);
+  assert.equal(media.guestMonitor.gain.value, 0.45);
+  media.update({ guestMuted: false, guestVolume: 80, monitorGuest: false });
+  assert.equal(media.guestGain.gain.value, 0.8);
+  assert.equal(media.guestMonitor.gain.value, 0);
+  media.removeGuest();
+  assert.equal(media.guestAnalyser, null);
+  assert.equal(media.guestMonitor, null);
 });
