@@ -8,7 +8,8 @@ Validated locally on Windows x64 on 27 October 2026.
 - Device controls: the visible Devices dialog populates camera, microphone and output-device selectors; switching the synthetic camera is exercised without accessing user hardware.
 - Background test: bundled MediaPipe worker loads locally, performs real segmentation and returns a mask used in the camera composition.
 - Comment test: a local WebSocket relay delivers a synthetic paid message through the real main/preload/renderer path; the host previews it, selects on-stream display and triggers a reaction.
-- Guest test: two actual Electron browser contexts using synthetic media connect over PeerJS/WebRTC; invitation token, guest consent, host waiting-room approval and receipt of guest media are exercised before recording the interview.
+- Guest test: two actual Electron browser contexts using synthetic media connect over PeerJS/WebRTC; invitation token, guest consent, host waiting-room approval, live tracks, advancing preview playback and visible guest pixels in both output canvases are checked before recording the interview. The test waits for recording finalization before decoding files.
+- 0.1.1 regression: sequential and concurrent duplicate incoming stream notifications must preserve live tracks and a single audio mix; removing a guest while playback starts must not restore the removed guest. All three tests failed against 0.1.0 before the fix.
 - Both CPU (`libx264`) and Intel Quick Sync (`h264_qsv`) encoding were tested on the available machine. NVIDIA/AMD hardware was not available.
 - Browser checks: studio controls, 1080p canvas resizing, explicit desktop-only streaming message, no horizontal overflow at the 1100-pixel minimum window width and no console errors on a clean load.
 

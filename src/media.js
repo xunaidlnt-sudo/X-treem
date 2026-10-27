@@ -375,23 +375,65 @@ export class StudioMedia {
     return stream;
   }
   async addGuest(stream, name) {
-    await this.audio();
+    // PeerJS emits the same stream once per incoming track. Reserve it before
+    // awaiting playback so the audio/video notifications share one attachment.
+    if (this.guest === stream) return this.guestReady;
     this.removeGuest();
-    await this.attach("guest", stream);
+    this.guest = stream;
     this.guestName = name;
-    this.guestSource = this.audioContext.createMediaStreamSource(stream);
-    this.guestGain = this.audioContext.createGain();
-    this.guestSource.connect(this.guestGain);
-    this.guestGain.connect(this.audioOut);
-    this.guestGain.connect(this.audioContext.destination);
-    this.update(this.config);
+    const attachment = Symbol("guest");
+    this.guestAttachment = attachment;
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    this.videos.guest = video;
+    this.guestReady = (async () => {
+      await this.audio();
+      if (this.guestAttachment !== attachment) return false;
+      const connectAudio = () => {
+        if (
+          this.guestAttachment !== attachment ||
+          this.guestSource ||
+          !stream.getAudioTracks().length
+        )
+          return;
+        this.guestSource = this.audioContext.createMediaStreamSource(stream);
+        this.guestGain = this.audioContext.createGain();
+        this.guestSource.connect(this.guestGain);
+        this.guestGain.connect(this.audioOut);
+        this.guestGain.connect(this.audioContext.destination);
+        this.update(this.config);
+      };
+      this.guestTrackListener = connectAudio;
+      stream.addEventListener?.("addtrack", connectAudio);
+      connectAudio();
+      await video.play();
+      return this.guestAttachment === attachment;
+    })().catch((error) => {
+      if (this.guestAttachment !== attachment) return false;
+      this.removeGuest();
+      throw error;
+    });
+    return this.guestReady;
   }
   removeGuest() {
+    this.guestAttachment = null;
+    this.guest?.removeEventListener?.("addtrack", this.guestTrackListener);
+    this.guestTrackListener = null;
     this.guestSource?.disconnect();
     this.guestGain?.disconnect();
     this.guestSource = null;
     this.guestGain = null;
-    this.disable("guest");
+    // Remote tracks belong to the call. Detaching a view must not stop them.
+    const video = this.videos.guest;
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+    }
+    delete this.videos.guest;
+    this.guest = null;
+    this.guestReady = null;
     this.guestName = null;
   }
   async start(config, onError) {

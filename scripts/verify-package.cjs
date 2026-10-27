@@ -20,8 +20,14 @@ assert.ok(match, "Packaged renderer entry");
 const js = asar
   .extractFile(archive, path.join("dist", "assets", match[1]))
   .toString();
+assert.equal(
+  js,
+  fs.readFileSync(path.join(__dirname, "../dist/assets", match[1]), "utf8"),
+  "Packaged renderer differs from tested build",
+);
 assert.ok(js.includes("Camera & audio devices"));
 assert.ok(js.includes("Guest interview"));
+assert.ok(js.includes("Guest camera preview"));
 assert.ok(js.includes("Live comments"));
 assert.ok(
   asar.extractFile(

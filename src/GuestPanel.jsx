@@ -15,10 +15,27 @@ export function GuestPanel({
     [guest, setGuest] = useState(null),
     [copied, setCopied] = useState(false);
   const room = useRef(null),
+    guestVideo = useRef(null),
     connection = useRef(null),
     pendingRef = useRef(null),
     outgoing = useRef(null),
     token = useRef(null);
+  useEffect(() => {
+    const video = guestVideo.current;
+    if (!video || !guest) return;
+    video.srcObject = guest.stream;
+    void video
+      .play()
+      .catch(() =>
+        onError(
+          "Guest preview could not start. Remove the guest and ask them to rejoin.",
+        ),
+      );
+    return () => {
+      video.pause();
+      video.srcObject = null;
+    };
+  }, [guest]);
   const endCall = () => {
     connection.current?.close();
     connection.current = null;
@@ -120,11 +137,16 @@ export function GuestPanel({
     setPending(null);
     call.on("stream", async (stream) => {
       try {
-        await media.current.addGuest(stream, name);
-        setGuest(name);
+        if (connection.current !== call) return;
+        const attached = await media.current.addGuest(stream, name);
+        if (!attached || connection.current !== call) return;
+        setGuest((current) =>
+          current?.stream === stream ? current : { name, stream },
+        );
         setStatus("Guest connected");
         change("scene", "interview");
       } catch (e) {
+        if (connection.current !== call) return;
         onError(e.message);
         endCall();
       }
@@ -200,8 +222,20 @@ export function GuestPanel({
       {guest && (
         <div className="guest-card">
           <strong>
-            <span className="dot live" /> {guest}
+            <span className="dot live" /> {guest.name}
           </strong>
+          <video
+            className="guest-monitor"
+            ref={guestVideo}
+            autoPlay
+            playsInline
+            muted
+            aria-label="Guest camera preview"
+          />
+          <p>
+            Guest camera preview. The Interview scene includes your guest in
+            both outputs.
+          </p>
           <label className="toggle-row">
             Mute guest audio
             <input

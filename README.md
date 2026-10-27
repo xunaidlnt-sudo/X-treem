@@ -2,7 +2,9 @@
 
 A React desktop production studio for Windows. Compose a show once, preview it in landscape and portrait, and stream both formats at the same time.
 
-**[Download the Windows installer](https://github.com/xunaidlnt-sudo/X-treem/releases)** · First release: **0.1.0 preview**
+**[Download the Windows installer](https://github.com/xunaidlnt-sudo/X-treem/releases)** · Current release: **0.1.1 preview**
+
+**0.1.1 fixes guest video appearing blank on the host:** repeated audio/video notifications now preserve the incoming tracks. The Guests panel also has a live guest camera preview, independent of the selected scene. Close X-treem, install the update, reopen your interview room and send a fresh invitation.
 
 ![X-treem Studio with landscape and portrait previews](docs/studio.png)
 
@@ -25,7 +27,7 @@ A React desktop production studio for Windows. Compose a show once, preview it i
 
 ## Quick start
 
-1. Install `X-treem-Setup-0.1.0-x64.exe` from Releases on Windows 10/11 x64.
+1. Install `X-treem-Setup-0.1.1-x64.exe` from Releases on Windows 10/11 x64.
 2. Open **Devices** beside the camera/microphone controls. Choose your camera, microphone and speakers/headphones; **Enable & detect devices** requests access and reveals device names. Refresh the list after connecting hardware. Add your camera and microphone, select a scene and adjust branding. **Save studio** remembers the selected devices.
 3. Add a destination with its RTMP(S) server URL and stream key. Choose landscape or portrait for each destination. The service must provide RTMP ingest access; signing in to that service is done in its own dashboard.
 4. Keep both output formats selected for simultaneous wide and vertical streaming. Each format needs a destination unless local recording is enabled.

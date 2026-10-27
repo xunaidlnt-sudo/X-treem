@@ -167,6 +167,15 @@
 .guest-card > strong {
   font-size: 13px;
 }
+.guest-monitor {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: contain;
+  background: #10151b;
+  border-radius: 8px;
+  margin-top: 12px;
+}
 .guest-card > p {
   font-size: 11px;
   margin-top: 10px;

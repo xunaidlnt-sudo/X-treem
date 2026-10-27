@@ -199,8 +199,50 @@ const watchdog = setTimeout(() => {
         }
       }
       if (!accepted) throw Error("Guest WebRTC media did not connect");
+      await sleep(1000);
+      const guestFrames = () =>
+        evaluate(`(() => {
+        const video = document.querySelector('.guest-monitor');
+        const regions = [...document.querySelectorAll('.canvases canvas')].map(canvas => {
+          const portrait = canvas.height > canvas.width;
+          const x = Math.floor(canvas.width * (portrait ? .1 : .55));
+          const y = Math.floor(canvas.height * (portrait ? .5 : .2));
+          const w = Math.floor(canvas.width * (portrait ? .7 : .4));
+          const h = Math.floor(canvas.height * (portrait ? .2 : .4));
+          const pixels = canvas.getContext('2d').getImageData(x,y,w,h).data;
+          let content = 0, samples = 0;
+          for(let i=0;i<pixels.length;i+=64) {
+            samples++;
+            if (Math.abs(pixels[i]-20)+Math.abs(pixels[i+1]-33)+Math.abs(pixels[i+2]-42)>30) content++;
+          }
+          return content / samples;
+        });
+        return { ready: video?.readyState, width: video?.videoWidth, time: video?.currentTime,
+          live: video?.srcObject?.getTracks().every(t => t.readyState === 'live'), regions };
+      })()`);
+      const before = await guestFrames();
+      await sleep(1200);
+      const after = await guestFrames();
+      if (
+        !after.live ||
+        after.ready < 2 ||
+        !after.width ||
+        !(after.time > before.time)
+      )
+        throw Error(
+          "Guest video is not live and advancing: " +
+            JSON.stringify({ before, after }),
+        );
+      if (
+        after.regions.length !== 2 ||
+        after.regions.some((contentRatio) => contentRatio < 0.5)
+      )
+        throw Error(
+          "Guest video is missing from an output canvas: " +
+            JSON.stringify(after),
+        );
       console.log(
-        "PASS browser guest invitation, consent, host acceptance and live WebRTC interview",
+        "PASS browser guest invitation, consent, host acceptance, advancing guest preview and visible guest pixels in both outputs",
       );
     }
     await evaluate(
@@ -221,7 +263,19 @@ const watchdog = setTimeout(() => {
     )
       throw Error("Session did not run: " + state.text);
     await evaluate(`document.querySelector('.danger').click()`);
-    await sleep(3500);
+    let finished = false;
+    for (let i = 0; i < 90; i++) {
+      await sleep(500);
+      if (
+        await evaluate(
+          `document.querySelector('.session-control button').textContent.trim() === 'Start recording'`,
+        )
+      ) {
+        finished = true;
+        break;
+      }
+    }
+    if (!finished) throw Error("Recording did not finish within 45 seconds");
     const files = (await fs.readdir(path.join(root, "X-treem"))).filter((n) =>
       n.endsWith(".mkv"),
     );
